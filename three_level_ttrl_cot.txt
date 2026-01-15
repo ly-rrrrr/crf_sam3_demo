@@ -1,0 +1,96 @@
+Please observe the following consecutive video frames.
+The object marked by the mask is the **protagonist** (focus subject), while everything outside the mask is the background/context.
+
+**Referring Expression:** "{referring_expression}"
+
+**Question:** Does the masked protagonist exactly match the referring expression?
+
+> **IMPORTANT:** Use systematic step-by-step verification to ensure accuracy.
+
+---
+
+## STEP 1: CONDITION DECOMPOSITION (Based on Text Only)
+
+> ⚠️ **CRITICAL:** Decompose PURELY based on the TEXT - ignore what you see in frames at this stage!
+
+* Break down the expression into simple, atomic conditions
+* Each condition describes ONE constraint (color, location, action, size, etc.)
+* Keep the category noun in each condition for clarity
+* Extract ALL attributes and constraints mentioned in the text
+* **DO NOT** drop any condition because you think it won't match the video
+
+### Decomposition Examples (text-only analysis):
+* `"black rabbit eating"` → `["black rabbit", "rabbit eating"]`
+* `"Kitten moving around playing"` → `["kitten moving around", "kitten playing"]`
+* `"white dog on the left"` → `["white dog", "dog on the left"]`
+* `"The trainer on the left, directing the bear's hula hoop performance"` → `["trainer on the left", "trainer directing the bear"]`
+* `"Monkeys on the left sitting down without moving"` → `["monkeys on the left", "monkeys sitting down", "monkeys without moving"]`
+
+### ⚠️ Common mistake to AVOID:
+* ❌ Seeing only white rabbits in video → incorrectly dropping "black" from conditions
+* ✓ Text says "black rabbit" → MUST include "black rabbit" as a condition regardless of what's in video
+
+**Sub-conditions for "{referring_expression}":**
+[List all atomic conditions here]
+
+---
+
+## STEP 2: VERIFY EACH SUB-CONDITION INDEPENDENTLY
+
+Verify each sub-condition independently:
+
+**Condition 1: [Condition content]**
+* **Observation:** [What the protagonist actually shows in the video frames]
+* **Verification:** ✓ Satisfied / ✗ Not Satisfied / ? Uncertain
+
+**Condition 2: [Condition content]**
+* **Observation:** [What the protagonist actually shows in the video frames]
+* **Verification:** ✓ Satisfied / ✗ Not Satisfied / ? Uncertain
+
+**Condition 3: [Condition content]**
+* **Observation:** [What the protagonist actually shows in the video frames]
+* **Verification:** ✓ Satisfied / ✗ Not Satisfied / ? Uncertain
+
+*[Continue for all conditions...]*
+
+---
+
+## STEP 3: COMPREHENSIVE JUDGMENT (FINAL JUDGMENT)
+
+### Statistical Summary:
+* Total conditions: **N** = [number]
+* Satisfied: **M** = [number]
+* Not satisfied: **F** = [number]
+* Uncertain: **U** = [number]
+
+### Definitions:
+
+**Core Condition Definition:**
+* Category name (e.g., "rabbit", "person", "elephant")
+* Primary action (e.g., "eating", "walking", "directing")
+* Key location attribute (e.g., "on the left", "in the corner")
+
+**Minor Condition Definition:**
+* Detail descriptions (e.g., shade of color, relative size)
+* Modifying states (e.g., "slowly", "carefully")
+
+### Decision Rules:
+
+**1. "Yes" (Perfect Match):**
+* All conditions satisfied (`M = N`)
+* **OR:** All core conditions satisfied + at most 1 minor condition uncertain (all core ✓ **AND** `U ≤ 1` AND only minor)
+
+**2. "Partial" (Near Match):**
+* Core conditions satisfied, only 1-2 minor conditions not satisfied or uncertain (all core ✓ **AND** `F ≤ 2` AND only minor)
+* **OR:** 1 core condition uncertain, rest all satisfied (1 core ? **AND** rest ✓)
+
+**3. "No" (Mismatch):**
+* Any core condition not satisfied (any core ✗)
+* **OR:** Multiple conditions not satisfied (`F ≥ 3`)
+* **OR:** Multiple core conditions uncertain (core ? `≥ 2`)
+
+---
+
+## FINAL ANSWER
+
+Answer with one word only: **Yes**, **Partial**, or **No**.

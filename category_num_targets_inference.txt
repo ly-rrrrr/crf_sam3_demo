@@ -1,0 +1,232 @@
+You are analyzing video frames with a referring expression to identify the target object's category and count.
+
+INPUT:
+- video frames showing the scene
+- Referring expression: "{referring_expression}"
+
+YOUR TASK: Output category and number of targets matching the description.
+
+═══════════════════════════════════════════════════════════
+PART 1: CATEGORY IDENTIFICATION (Language-First, Vision-Second)
+═══════════════════════════════════════════════════════════
+
+Step 1: Extract category from language
+- Identify the grammatical subject (main noun) in the referring expression
+- If the expression has no clear subject (e.g., "On the left, directing..."), look for the implied actor
+- Examples:
+  * "The dog running" → subject: "dog"
+  * "White rabbit jumping" → subject: "rabbit"
+  * "Monkeys on the left" → subject: "Monkeys" → "monkey"
+  * "The trainer on the left, directing..." → subject: "trainer"
+
+Step 2: Normalize to common visual category
+- Check the video frames to see what object type actually appears
+- Convert specific/ambiguous terms to standard visual categories:
+  * "trainer" / "person directing" / "man" / "woman" → "person"
+  * "kitten" / "cat" / "kitty" → "cat"
+  * "puppy" / "dog" → "dog"
+  * "bunny" / "rabbit" → "rabbit"
+- ⚠️ CRITICAL: When expression explicitly specifies a body part, KEEP the body part:
+  * "Hand of human" → "hand" (NOT "person")
+  * "Arm reaching out" → "arm" (NOT "person")
+  * "Leg of athlete" → "leg" (NOT "person")
+  * Only normalize to "person" when the expression refers to the WHOLE person
+- Keep the category at an appropriate level of specificity for visual recognition
+- Use singular form for the category name
+
+Final category: Choose the normalized visual category that matches both language and frames.
+
+═══════════════════════════════════════════════════════════
+PART 2: COUNT DETERMINATION (Vision-First, Language-Second)
+═══════════════════════════════════════════════════════════
+
+Step 1: Visual baseline count
+- Scan all frames and count how many objects of this category appear
+- Note: Objects may appear/disappear across frames, use the most common count
+- Record this as VISUAL_COUNT
+
+Step 2: Extract sub-conditions from the referring expression
+⚠️ CRITICAL: Decompose PURELY based on the TEXT - ignore what you see in frames at this stage!
+
+- Break down the expression into simple, atomic conditions
+- Each condition describes ONE constraint (color, location, action, size, etc.)
+- Keep the category noun in each condition for clarity
+- Extract ALL attributes and constraints mentioned in the text
+- DO NOT drop any condition because you think it won't match the video
+
+Example decomposition (text-only analysis):
+- "black rabbit eating" → ["black rabbit", "rabbit eating"]
+- "Kitten moving around playing" → ["kitten moving around", "kitten playing"]
+- "white dog on the left" → ["white dog", "dog on the left"]
+- "The trainer on the left, directing the bear's hula hoop performance" → ["trainer on the left", "trainer directing the bear"]
+- "Monkeys on the left sitting down without moving" → ["monkeys on the left", "monkeys sitting down", "monkeys without moving"]
+
+⚠️ Common mistake to AVOID:
+❌ Seeing only white rabbits in video → incorrectly dropping "black" from conditions
+✓ Text says "black rabbit" → MUST include "black rabbit" as a condition regardless of what's in video
+
+Step 3: Apply sub-conditions sequentially to filter (NOW use visual evidence)
+- Start with VISUAL_COUNT (all objects of this category visible)
+- For each sub-condition in order:
+  a) Check frames: how many objects satisfy this specific condition?
+  b) Record the count after this filter
+  c) If count becomes 0, note which condition caused the mismatch
+- Apply AND logic: an object must satisfy ALL sub-conditions simultaneously
+- Final filtered_count = objects matching ALL conditions (can be 0)
+
+Step 4: Determine final count with priority rules
+⚠️ CRITICAL: Check these rules in STRICT ORDER. Stop at the FIRST matching rule.
+
+**Rule 1: EXPLICIT NUMBER (HIGHEST PRIORITY)**
+- If text contains explicit numbers ("two", "2", "three", "4 lizards"), USE THAT NUMBER
+- This rule OVERRIDES ALL other rules including filtering results
+- Examples: "two monkeys" → 2, "4 lizards" → 4, "three bears" → 3
+- ✓ STOP here if this rule applies
+
+**Rule 2: SINGULAR DETERMINERS**
+- Article "the/The" + subject, singular determiner
+- Examples: "the dog", "a rabbit" → num_targets = 1
+- ✓ STOP here if this rule applies
+
+**Rule 3: SUB-CONDITION FILTERING**
+- If there are complex conditions AND no explicit number
+- Use filtered_count from Step 3
+- ✓ STOP here if this rule applies
+
+**Rule 4: PLURAL WITHOUT CONSTRAINTS**
+- Plural noun with minimal conditions
+- Use VISUAL_COUNT (minimum 2)
+
+⚠️ If filtered_count = 0, this means NO object matches the full description → num_targets = 1
+
+═══════════════════════════════════════════════════════════
+OUTPUT FORMAT
+═══════════════════════════════════════════════════════════
+
+Return ONLY valid JSON:
+{{
+  "category": "<normalized category in singular form>",
+  "num_targets": <final count as integer>,
+  "reasoning": {{
+    "language_subject": "<extracted subject from expression>",
+    "normalized_to": "<why this visual category>",
+    "visual_count": <total objects of this category in frames>,
+    "sub_conditions": [<list of ALL conditions extracted from text>],
+    "filtered_count": <count after applying all sub-conditions with AND logic>,
+    "final_rule_applied": "<which priority rule determined the final count>"
+  }}
+}}
+
+═══════════════════════════════════════════════════════════
+EXAMPLES
+═══════════════════════════════════════════════════════════
+
+Example 1:
+Expression: "The trainer on the left, directing the bear's hula hoop performance with its mouth."
+Frames show: 2 people, 1 bear
+
+Output:
+{{
+  "category": "person",
+  "num_targets": 1,
+  "reasoning": {{
+    "language_subject": "trainer",
+    "normalized_to": "person (trainer is a type of person visible in frames)",
+    "visual_count": 2,
+    "sub_conditions": ["trainer on the left", "trainer directing the bear"],
+    "filtered_count": 1,
+    "final_rule_applied": "Singular determiner 'The' + singular noun 'trainer' → 1"
+  }}
+}}
+
+Example 2:
+Expression: "Kitten moving around playing"
+Frames show: 3 kittens (2 playing and moving, 1 sitting still)
+
+Output:
+{{
+  "category": "cat",
+  "num_targets": 2,
+  "reasoning": {{
+    "language_subject": "kitten",
+    "normalized_to": "cat (kitten is young cat)",
+    "visual_count": 3,
+    "sub_conditions": ["kitten moving around", "kitten playing"],
+    "filtered_count": 2,
+    "final_rule_applied": "Sub-condition filtering: only 2 kittens satisfy both moving AND playing"
+  }}
+}}
+
+Example 3:
+Expression: "Monkeys on the left sitting down without moving"
+Frames show: 4 monkeys total (2 on left sitting still, 2 on right moving)
+
+Output:
+{{
+  "category": "monkey",
+  "num_targets": 2,
+  "reasoning": {{
+    "language_subject": "monkeys",
+    "normalized_to": "monkey (same category)",
+    "visual_count": 4,
+    "sub_conditions": ["monkeys on the left", "monkeys sitting down", "monkeys without moving"],
+    "filtered_count": 2,
+    "final_rule_applied": "Sub-condition filtering: 2 monkeys on left are sitting and not moving"
+  }}
+}}
+
+Example 4:
+Expression: "black rabbit eating"
+Frames show: 2 white rabbits, both eating
+
+Output:
+{{
+  "category": "rabbit",
+  "num_targets": 1,
+  "reasoning": {{
+    "language_subject": "rabbit",
+    "normalized_to": "rabbit (same category)",
+    "visual_count": 2,
+    "sub_conditions": ["black rabbit", "rabbit eating"],
+    "filtered_count": 0,
+    "final_rule_applied": "Sub-condition filtering: no objects match all conditions"
+  }}
+}}
+
+Example 5:
+Expression: "The two monkeys in a crouched position on the left without any movement"
+Frames show: 4 monkeys (2 on left crouched and still, 2 on right moving)
+
+Output:
+{{
+  "category": "monkey",
+  "num_targets": 2,
+  "reasoning": {{
+    "language_subject": "monkeys",
+    "normalized_to": "monkey (same category)",
+    "visual_count": 4,
+    "sub_conditions": ["two monkeys", "monkeys in a crouched position", "monkeys on the left", "monkeys without any movement"],
+    "filtered_count": 2,
+    "final_rule_applied": "Rule 1: Explicit number 'two' → 2 (overrides filtering)"
+  }}
+}}
+
+Example 6:
+Expression: "Hand of human holding food and pulling lizard up"
+Frames show: A person's hand interacting with lizards
+
+Output:
+{{
+  "category": "hand",
+  "num_targets": 1,
+  "reasoning": {{
+    "language_subject": "Hand",
+    "normalized_to": "hand (expression explicitly refers to body part, not the whole person)",
+    "visual_count": 1,
+    "sub_conditions": ["Hand of human", "hand holding food", "hand pulling lizard up"],
+    "filtered_count": 1,
+    "final_rule_applied": "Rule 2: Singular determiner (no article but singular noun 'Hand') → 1"
+  }}
+}}
+
+Now analyze the provided frames and referring expression following this process.

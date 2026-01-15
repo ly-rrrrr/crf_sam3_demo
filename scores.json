@@ -1,0 +1,83 @@
+{
+  "video_id": "3dde46eaaf53",
+  "exp_id": 22,
+  "expression": "The two monkeys in a crouched position on the left without any movement.",
+  "category": "monkey",
+  "num_targets": 2,
+  "sub_conditions": [
+    "two monkeys",
+    "monkeys in a crouched position",
+    "monkeys on the left",
+    "monkeys without any movement"
+  ],
+  "final_rule_applied": "Rule 1: Explicit number 'two' \u2192 2 (overrides filtering)",
+  "num_candidates": 5,
+  "num_selected": 2,
+  "num_gt_identified": 2,
+  "gt_match": true,
+  "candidates": [
+    {
+      "obj_id": 0,
+      "score": 0.0018019176277448423,
+      "prob_yes": 0.0017003770917654037,
+      "prob_partial": 0.00020308107195887715,
+      "prob_no": 0.9980965256690979,
+      "prediction": "**No**\n\n---\n\n##",
+      "is_selected": false,
+      "is_gt": false,
+      "iou": 0.0020921729586536706
+    },
+    {
+      "obj_id": 1,
+      "score": 0.03778666042489931,
+      "prob_yes": 0.03728979080915451,
+      "prob_partial": 0.0009937392314895988,
+      "prob_no": 0.9617164134979248,
+      "prediction": "**No**\n\n---\n\n##",
+      "is_selected": true,
+      "is_gt": true,
+      "iou": 0.2407321965907618
+    },
+    {
+      "obj_id": 2,
+      "score": 0.033406377042410895,
+      "prob_yes": 0.03306327387690544,
+      "prob_partial": 0.0006862063310109079,
+      "prob_no": 0.966250479221344,
+      "prediction": "**No**\n\n---\n\n##",
+      "is_selected": false,
+      "is_gt": true,
+      "iou": 0.7548832652578865
+    },
+    {
+      "obj_id": 3,
+      "score": 0.0043431623198557645,
+      "prob_yes": 0.004067897330969572,
+      "prob_partial": 0.0005505299777723849,
+      "prob_no": 0.9953815937042236,
+      "prediction": "**No**\n\n---\n\n##",
+      "is_selected": false,
+      "is_gt": false,
+      "iou": 0.0
+    },
+    {
+      "obj_id": 4,
+      "score": 0.14844458660809323,
+      "prob_yes": 0.14788004755973816,
+      "prob_partial": 0.0011290780967101455,
+      "prob_no": 0.850990891456604,
+      "prediction": "**No**\n\n---\n\n##",
+      "is_selected": true,
+      "is_gt": false,
+      "iou": 0.0
+    }
+  ],
+  "selected_obj_ids": [
+    4,
+    1
+  ],
+  "gt_obj_ids": [
+    1,
+    2
+  ]
+}
