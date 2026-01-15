@@ -1,67 +1,61 @@
-# CRF-SAM3 Demo 使用指南（简版）
+﻿# CRF-SAM3 Demo
 
-## 概述
+CRF-SAM3（Concept Recall & Spatio-Temporal Filtering with SAM3）用于指代表达式视频目标分割（RVOS）的演示与评测。
 
-`crf_sam3_demo.py` 是 CRF-SAM3 的单视频推理演示脚本，采用“先召回、后过滤”的范式完成 RVOS 目标选择。
+## 流程概述
+1. Concept Recall：MLLM 从表达式抽取类别/数量，SAM3 召回候选。
+2. Visual Tube：采样多帧构建时空 tube，支持 bbox/outline/glow/mask 可视化。
+3. Semantic Discrimination：MLLM 打分筛选候选（cot 或 three_level）。
 
-## 实验流程（无多帧拼接）
+## 仓库内容
+- `crf_sam3_demo.py`：单视频 demo + 主 pipeline
+- `crf_sam3_config.yaml`：默认配置
+- `run_crf_sam3_dataset.py`：MeViS 数据集评测
+- `run_crf_sam3_dataset_subexpr.py`：子表达式评测（依赖 `Visual-RFT/`）
+- `category_num_targets_inference.txt`：类别/数量推断 prompt
+- `three_level_ttrl_cot.txt`：三档判别 prompt
+- `scores.json`：示例输出
+- `README_CRF_SAM3_DEMO.md`：旧版说明（可能存在编码问题）
 
-- **Stage 1: Concept Recall（概念召回）**  
-  以指代表达式为输入，使用多模态语言模型解析出核心类别（category）与目标数量（num_targets）。  
-  随后以类别词作为文本提示，驱动 SAM3 在全视频范围内进行候选实例召回，得到每个候选对象在时间维度上的掩码轨迹（masklets）。  
-  该阶段的目标是“高召回、低漏检”，不强调精确筛选。
+## 依赖与模型
+- Python 3.8+
+- 依赖（基于 import）：`torch`、`transformers`、`opencv-python`、`Pillow`、`numpy`、`pyyaml`、`tqdm`
+- 需准备：SAM3 checkpoint、Qwen2.5/3 MLLM；启用 Q-Frame 时还需 CLIP 模型
 
-- **Stage 2: Visual Tube Construction（视觉管道构建）**  
-  对每个候选对象的掩码轨迹进行关键帧采样（默认均匀采样），将掩码在原始帧上进行可视化标注（mask / bbox / outline / glow）。  
-  由此形成候选对象的时序视觉管道（Visual Tube），保留跨帧的外观、动作与时空上下文。  
-  注意：该版本不进行多帧拼接，仅输出逐帧可视化结果。
+## 快速开始
+1. 修改 `crf_sam3_config.yaml`：
+   - `model.mllm_path`、`model.sam3_checkpoint`、`model.clip_model_path`（可选）
+   - `demo.mevis_root`、`demo.video_id`、`demo.exp_id`，或 `demo.video_path`/`demo.expression`
+   - `pipeline.num_tube_frames`、`visual_tube.sampling_strategy`、`visual_tube.visualization_style`
+   - `discrimination.prompt_type`（`cot`/`three_level`）
+2. 运行：
+   `python crf_sam3_demo.py --config crf_sam3_config.yaml`
+   可覆盖参数：`--video_path`、`--expression`、`--num_tube_frames`、`--output_dir`
+   注：当前脚本要求必须提供 `--config`。
 
-- **Stage 3: Semantic Discrimination（语义判别）**  
-  将每条 Visual Tube 输入到 MLLM 进行语义判别与匹配评分。  
-  得分来源可为结构化回答（如 confidence_score）或 logits 近似（Yes/Partial/No），最终将分数归一化到可比较尺度。  
-  根据 Top-K 策略筛选（K = num_targets），保留高匹配度候选并输出最终分割掩码与评分记录。
+## 示例（当前）
+- 视频：`mevis/valid_u/JPEGImages/3dde46eaaf53`
+- 表达式：`The two monkeys in a crouched position on the left without any movement.`
+- 输出目录：`crf_sam3_demo_output/3dde46eaaf53/22`
+- `scores.json`：`crf_sam3_demo_output/3dde46eaaf53/22/scores.json`
+- visual_tubes：`crf_sam3_demo_output/visual_tubes/3dde46eaaf53/22/`
 
-## 运行方式（简版）
-
-使用配置文件启动即可（示例：`configs/crf_sam3_config.yaml`）。核心配置包括：
-`video_path`、`expression`、`output_dir`、`mllm_path`、`sam3_checkpoint`、`num_tube_frames`。
-
-## 实际运行样本（无多帧拼接版本）
-
-> 本样本来自 `crf_sam3_demo.py` 的真实输出，未使用 grid 拼接，仅保留逐帧 Visual Tube。
-
-- **视频**: `mevis/valid_u/JPEGImages/2fbec459efc2`
-- **表达式**: `white car move and turn left`
-- **输出目录**: `crf_sam3_demo_output/2fbec459efc2/3`
-- **scores.json**: `crf_sam3_demo_output/2fbec459efc2/3/scores.json`
-- **visual_tubes 根目录**: `crf_sam3_demo_output/visual_tubes/2fbec459efc2/3/`
-
-候选清单（每个候选对应一个 `object_x` 子目录）：
-- `object_0`（frames=8, is_gt=False, score=1.4458e-05, iou=0.0001659）
-- `object_1`（frames=3, is_gt=False, score=1.0723e-06, iou=0.0）
-- `object_2`（frames=8, is_gt=True, score=0.9914, iou=0.9675）
-- `object_3`（frames=8, is_gt=False, score=3.1052e-07, iou=0.0）
-- `object_4`（frames=8, is_gt=False, score=2.2325e-05, iou=0.0）
-
-## 输出结构（简版）
-
+## 输出结构
 ```
 crf_sam3_demo_output/
-├── <video_id>/<exp_id>/
-│   ├── scores.json
-│   ├── 00000.png
-│   └── ...
-└── visual_tubes/<video_id>/<exp_id>/
-    ├── object_0/frame_*.jpg
-    └── object_N/frame_*.jpg
+  <video_id>/<exp_id>/
+    00000.png
+    00001.png
+    scores.json
+  visual_tubes/<video_id>/<exp_id>/
+    object_0/frame_*.jpg
+    object_N/frame_*.jpg
 ```
 
-## 常见问题（简版）
+## 数据集评测
+- `python run_crf_sam3_dataset.py --config crf_sam3_config.yaml`
+- 子表达式评测：`python run_crf_sam3_dataset_subexpr.py --config <your_config>`（需 `Visual-RFT/`）
 
-- **JSONDecodeError**：已在代码中加入清理逻辑，通常可自动修复。
-- **候选分数同质**：可切换为 logits 评分或调整判别提示词。
-
-## 相关文档
-
-- `README_CRF_SAM3.md`
-- `configs/crf_sam3_config.yaml`
+## 常见问题
+- Prompt 路径：代码默认读取 `configs/category_num_targets_inference.txt` 和 `configs/three_level_ttrl_cot.txt`。若你的 prompt 在仓库根目录，请新建 `configs/` 并移动文件，或修改代码中的路径。
+- 编码异常：如提示模板出现乱码，建议确认文件以 UTF-8 保存。
